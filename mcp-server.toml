@@ -12,7 +12,7 @@ mcp_name = "doris-new-mcp"        # MCP service name
 mcp_host = "0.0.0.0"              # HTTP listen address
 mcp_port = 3000                   # HTTP listen port
 fe_port = 9030                    # Doris FE MySQL port
-fe_host = "127.0.0.1"             # Doris FE address; use the private FE IP or hostname for remote deployment
+fe_host = "dorisfe"             # Doris FE address; use the private FE IP or hostname for remote deployment
 
 # ---------------------------------------------------------------------------
 # Logging

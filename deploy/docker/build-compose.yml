@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  doris-mcp-server:
+    image: ${REGISTRY_URL}/aibsct/doris-mcp-server:${DORIS_MCP_SERVER_VERSION:-4.1.2}_${IMAGE_DORIS_MCP_VERSION:-latest}
+    build:
+      context: ../../  # HOME目录
+      dockerfile: deploy/docker/Dockerfile
+      platforms:
+        - "linux/amd64"
+      #  - "linux/arm64"
