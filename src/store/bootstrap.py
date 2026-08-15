@@ -353,27 +353,27 @@ def collect_physical_tables(models_dir: Path) -> set[str]:
 
 def grant_select_on_physical_tables(tables: set[str]) -> None:
     """Grant all Doris users SELECT only on the supplied physical tables."""
-    quoted_tables = []
-    for table in sorted(tables):
-        parts = table.split(".")
-        if len(parts) not in (2, 3) or any(
-            not _DORIS_IDENTIFIER_RE.fullmatch(part) for part in parts
-        ):
-            raise ValueError(f"Invalid semantic table name: {table}")
-        quoted_tables.append(".".join(f"`{part}`" for part in parts))
-    if not quoted_tables:
-        raise ValueError("No physical tables found in semantic YAML files")
-
-    from store.store import _get_conn
-
-    conn = _get_conn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("GRANT SELECT_PRIV ON `system_mcp`.* TO '%'")
-            for table in quoted_tables:
-                cursor.execute(f"GRANT SELECT_PRIV ON {table} TO '%'")
-    finally:
-        conn.close()
+#    quoted_tables = []
+#    for table in sorted(tables):
+#        parts = table.split(".")
+#        if len(parts) not in (2, 3) or any(
+#            not _DORIS_IDENTIFIER_RE.fullmatch(part) for part in parts
+#        ):
+#            raise ValueError(f"Invalid semantic table name: {table}")
+#        quoted_tables.append(".".join(f"`{part}`" for part in parts))
+#    if not quoted_tables:
+#        raise ValueError("No physical tables found in semantic YAML files")
+#
+#    from store.store import _get_conn
+#
+#    conn = _get_conn()
+#    try:
+#        with conn.cursor() as cursor:
+#            cursor.execute("GRANT SELECT_PRIV ON `system_mcp`.* TO '%'")
+#            for table in quoted_tables:
+#                cursor.execute(f"GRANT SELECT_PRIV ON {table} TO '%'")
+#    finally:
+#        conn.close()
 
 
 def pre_validate_physical(
