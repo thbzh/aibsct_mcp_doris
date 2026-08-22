@@ -61,6 +61,7 @@ class ConnectionPool:
         database: str | None = None,
         max_rows: int | None = None,
         timeout: int | None = None,
+        params: list[Any] | tuple[Any, ...] | None = None,
     ) -> tuple[list[dict[str, Any]], list[str]]:
         """Execute SQL and return (rows_as_dicts, column_names)."""
         pool = await self._ensure_pool()
@@ -72,7 +73,9 @@ class ConnectionPool:
                 if database:
                     await conn.select_db(database)
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    await asyncio.wait_for(cur.execute(sql), timeout=_timeout)
+                    await asyncio.wait_for(
+                        cur.execute(sql, params or ()), timeout=_timeout
+                    )
                     rows = await cur.fetchmany(_max_rows)
                     columns = [d[0] for d in cur.description] if cur.description else []
                     return list(rows), columns

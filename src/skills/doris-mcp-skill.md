@@ -2,15 +2,16 @@
 
 > You are reading this because you called `get_query_guide()`. All tool-calling rules below are mandatory — follow them strictly.
 
-## tl;dr — The Six Essential Tools
+## tl;dr - The Seven Essential Tools
 
 ```
 get_query_guide()                        → you are here (already called)
 check_service_health()                   → which workspace is healthy?
 list_metrics(workspace)                  → what can I ask?
 list_dimensions_for_metric(workspace, name) → how can I slice it?
-query_metric(workspace, metrics, ...)    → give me the data
-execute_query(sql, ...)                  → raw SQL, last resort only
+query_metric(workspace, metrics, ...)    -> give me the data
+table_overview(database, tables)         -> table overview: partitions/volume/update time
+execute_query(sql, ...)                  -> raw SQL, last resort only
 ```
 
 `workspace` is required for the first three. Use `"example"` for the built-in sample.
@@ -200,6 +201,45 @@ order_by=["-total_amount", "channel"]  # multi-column
 {"workspace": "example", "metrics": ["total_amount"], "group_by": ["brand"],
  "order_by": ["-total_amount"], "having": "total_amount > 500"}
 ```
+
+---
+
+## Table Overview (table_overview)
+
+Use when the user asks about "table size / partitions / latest update time / table health". It reads `information_schema` and returns per-table metadata - it does NOT query business data.
+
+### Parameters
+
+| Param | Type | Required | Default | Notes |
+|-------|------|----------|---------|-------|
+| `database` | string | no | `""` | Database name. Empty = all databases (whitelist applies) |
+| `tables` | list[string] | no | `[]` | Table names. Bare names require `database`; `"db.table"` qualified names also work |
+| `page_size` | int | no | `50` | Page size |
+| `page_token` | str | no | `""` | Cursor from previous `meta.next_page_token` |
+
+### Output Columns
+
+Database, table name, table type (BASE TABLE / VIEW, etc.), latest-updated partition, partition count, create time, latest update time, total rows, total data size (MB), latest partition rows, latest partition data size (MB). Ordered by database, table name.
+
+### Examples
+
+```json
+// Overview of all tables in one database
+{"database": "dw"}
+
+// Specific tables (bare names + database)
+{"database": "dw", "tables": ["orders", "users"]}
+
+// Specific tables (qualified names, cross-database)
+{"tables": ["dw.orders", "ods.users"]}
+
+// ALL tables in the cluster (slow on large clusters - use with care)
+{}
+```
+
+**Rules:**
+- Results are statistical metadata from `information_schema`; row counts are estimates, not exact counts.
+- Do NOT use it to answer business questions (e.g., "what is total sales") - that is `query_metric`'s job.
 
 ---
 

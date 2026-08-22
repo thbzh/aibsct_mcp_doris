@@ -36,6 +36,7 @@ from tools.discovery import (
     describe_table as _describe_table,
     list_databases as _list_databases,
     list_tables as _list_tables,
+    table_overview as _table_overview,
 )
 from tools.query import execute_query as _execute_query
 
@@ -817,6 +818,63 @@ def create_server(
             return pool
         result = await _describe_table(pool, database, table, detail_level)
         log_tool_call("describe_table", client_id=auth.client_id, params={"database": database, "table": table},
+                      duration_ms=(time.monotonic() - start) * 1000, metricflow=False)
+        return result
+
+    @mcp.tool(
+        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+    )
+    async def table_overview(
+        database: str | None = "",
+        tables: list[str] | str = [],
+        page_size: int = 50,
+        page_token: str = "",
+    ) -> str:
+        """Overview of tables: latest-updated partition, partition count, create time, latest update time, total rows/bytes, latest partition rows/bytes, table type. database and tables are BOTH optional and independent: (1) both omitted -> all tables in all databases; (2) database only -> all its tables; (3) tables as qualified names ['db.table'] WITHOUT database -> those tables across databases; (4) database + bare names ['orders'] -> those tables in that database. A single table may also be passed as a plain string 'db.table'. Rows ordered by database, table name."""
+        auth = check_tool_access("table_overview")
+        if auth.denied:
+            return auth.denied
+        start = time.monotonic()
+        # Normalize LLM-client argument drift:
+        #  - tables sent as a single string ("wzpt.t") instead of a list
+        #  - database sent as explicit null
+        if isinstance(tables, str):
+            tables = [tables] if tables else []
+        db = database or None
+        tbls = tables or None
+        if db and cc.db_whitelist and db not in cc.db_whitelist:
+            return error_response(ErrorCode.PERMISSION_DENIED, f"Database '{db}' not in whitelist")
+        # Whitelist applies to qualified table names too.
+        if cc.db_whitelist and tbls:
+            bad = [t for t in tbls if "." in t and t.split(".", 1)[0] not in cc.db_whitelist]
+            if bad:
+                return error_response(ErrorCode.PERMISSION_DENIED, f"Database not in whitelist: {bad[0].split('.', 1)[0]}")
+
+        pool = await _acquire_pool("table_overview")
+        if isinstance(pool, str):
+            return pool
+
+        result = await _table_overview(pool, db, tbls, cc.db_whitelist or None)
+
+        # Apply pagination on the returned rows
+        import json as _json
+        try:
+            parsed = _json.loads(result)
+            if parsed.get("success") and isinstance(parsed.get("data"), dict):
+                from core.pagination import paginate as _paginate
+                rows = parsed["data"].get("rows", [])
+                page, next_token, total = _paginate(rows, page_size, page_token or None)
+                meta = parsed.get("meta", {})
+                meta["total_count"] = total
+                if next_token:
+                    meta["next_page_token"] = next_token
+                parsed["data"]["rows"] = page
+                result = _json.dumps(parsed, ensure_ascii=False)
+        except (ValueError, KeyError):
+            pass  # keep original response on any parse issue
+
+        log_tool_call("table_overview", client_id=auth.client_id,
+                      params={"database": database, "tables": tables},
                       duration_ms=(time.monotonic() - start) * 1000, metricflow=False)
         return result
 

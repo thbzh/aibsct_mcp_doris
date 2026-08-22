@@ -1,0 +1,30 @@
+# 构建上下文排除清单 - builder 阶段 `COPY . .` 时避免把本地产物、
+# 大文件和敏感信息送进镜像。
+# build.sh 会在容器内重新生成 dist/ 与 python/。
+# 注意：src/skills/*.md 是运行时加载的技能文档，不可排除。
+
+# 本地构建产物
+dist/
+python/
+build/
+*.egg-info
+*.tar.gz
+
+# 运行时产物
+__pycache__/
+*.pyc
+*.pyo
+logs/
+workspace/
+.DS_Store
+
+# 版本控制与 IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# 敏感信息（Bearer 凭证、集群地址、部署密钥）
+.mcp.json
+mcp.json.example
+deploy/docker/.env
