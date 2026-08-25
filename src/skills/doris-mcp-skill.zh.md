@@ -11,10 +11,21 @@ list_metrics(workspace)                  -> 我可以问什么？
 list_dimensions_for_metric(workspace, name) -> 如何切片？
 query_metric(workspace, metrics, ...)    -> 给我数据
 table_overview(database, tables)         -> 表概览：分区/数据量/更新时间
+run_data_quality_check(database, tables) -> 按需数据质量校验
 execute_query(sql, ...)                  -> 原始 SQL，仅作最后手段
 ```
 
 `workspace` 是前三个工具的必填参数。内置示例使用 `"example"`。
+
+### 数据质量
+
+当用户询问特定表的数据质量（空值、重复、行数异常、表结构漂移）时，调用：
+
+```
+run_data_quality_check(database="dw", tables=["orders", "customers"])
+```
+
+该工具基于实时元数据自动装配规则（完整性、可用性、一致性、准确性），返回逐表逐规则的通过/失败明细。单次最多 20 张表。
 
 ---
 

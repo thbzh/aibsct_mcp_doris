@@ -5,16 +5,27 @@
 ## tl;dr - The Seven Essential Tools
 
 ```
-get_query_guide()                        → you are here (already called)
-check_service_health()                   → which workspace is healthy?
-list_metrics(workspace)                  → what can I ask?
-list_dimensions_for_metric(workspace, name) → how can I slice it?
+get_query_guide()                        -> you are here (already called)
+check_service_health()                   -> which workspace is healthy?
+list_metrics(workspace)                  -> what can I ask?
+list_dimensions_for_metric(workspace, name) -> how can I slice it?
 query_metric(workspace, metrics, ...)    -> give me the data
 table_overview(database, tables)         -> table overview: partitions/volume/update time
+run_data_quality_check(database, tables) -> on-demand data quality check
 execute_query(sql, ...)                  -> raw SQL, last resort only
 ```
 
 `workspace` is required for the first three. Use `"example"` for the built-in sample.
+
+### Data quality
+
+When the user asks about data quality of specific tables (nulls, duplicates, row count anomalies, schema drift), call:
+
+```
+run_data_quality_check(database="dw", tables=["orders", "customers"])
+```
+
+It auto-assembles rules from live metadata (completeness, availability, consistency, accuracy) and returns per-table per-rule pass/fail details. Max 20 tables per call.
 
 ---
 

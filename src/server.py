@@ -39,6 +39,7 @@ from tools.discovery import (
     table_overview as _table_overview,
 )
 from tools.query import execute_query as _execute_query
+from tools.data_quality import run_data_quality_check as _run_data_quality_check
 
 logger = logging.getLogger("doris_new_mcp")
 
@@ -908,6 +909,35 @@ def create_server(
 
         log_tool_call("execute_query", client_id=auth.client_id, params={"sql": mask_sensitive(sql[:200]), "database": database},
                       success=actual_success, duration_ms=duration, metricflow=False)
+        return result
+
+    @mcp.tool(
+        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+    )
+    async def run_data_quality_check(database: str, tables: list[str] | str = []) -> str:
+        """On-demand data quality check for given database + tables. Auto-assembles rules from live metadata (completeness/availability/consistency/accuracy: row count, schema drift, null rate, unique keys, numeric bounds, enum cardinality, delete-flag domain, time sanity). Returns per-table per-rule details. Max 20 tables per call. Use after data load to verify quality."""
+        auth = check_tool_access("run_data_quality_check")
+        if auth.denied:
+            return auth.denied
+        start = time.monotonic()
+        if cc.db_whitelist and database not in cc.db_whitelist:
+            return error_response(ErrorCode.PERMISSION_DENIED, f"Database '{database}' not in whitelist")
+
+        pool = await _acquire_pool("run_data_quality_check")
+        if isinstance(pool, str):
+            return pool
+
+        result = await _run_data_quality_check(pool, database, tables)
+
+        import json
+        try:
+            parsed = json.loads(result)
+            actual_success = parsed.get("success", False)
+        except ValueError:
+            actual_success = False
+        log_tool_call("run_data_quality_check", client_id=auth.client_id,
+                      params={"database": database, "tables": tables},
+                      success=actual_success, duration_ms=(time.monotonic() - start) * 1000, metricflow=False)
         return result
 
     @mcp.tool(

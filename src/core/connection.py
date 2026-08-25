@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import urllib.parse
 from typing import Any
 
 import aiomysql
@@ -87,6 +88,17 @@ class ConnectionPool:
                 # a distinct class on 3.10; both are covered here.
                 conn.close()
                 raise
+
+    def sqlalchemy_url(self, database: str | None = None) -> str:
+        """SQLAlchemy 连接串（供 great_expectations 等同步驱动使用）。"""
+        encoded_password = urllib.parse.quote_plus(self._password)
+        url = (
+            f"mysql+pymysql://{self._user}:{encoded_password}"
+            f"@{self._host}:{self._cluster.fe_mysql_port}"
+        )
+        if database:
+            url += f"/{database}"
+        return url
 
     async def close(self) -> None:
         if self._pool and not self._pool.closed:
